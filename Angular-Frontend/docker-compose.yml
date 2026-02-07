@@ -1,0 +1,9 @@
+version: "3.8"
+
+services:
+  angular-app:
+    image: uriedockerista/uriedockerista-angular
+    container_name: uriedockerista-angular
+    ports:
+      - "8080:80"
+    restart: unless-stopped
