@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_session.dart';
 import '../../core/app_colors.dart';
+import '../settings/settings_tab_page.dart';
 
 class ProfileTabPage extends StatelessWidget {
   const ProfileTabPage({super.key});
@@ -50,6 +51,17 @@ class ProfileTabPage extends StatelessWidget {
           title: 'Listening History',
           value: 'See recent sessions',
           onTap: () {},
+        ),
+        _ProfileTile(
+          icon: Icons.settings_outlined,
+          title: 'Settings',
+          value: 'Notifications, check-in, and autoplay',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsTabPage()),
+            );
+          },
         ),
       ],
     );

@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_service.dart';
-import '../../core/app_session.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_session.dart';
 import '../../core/spotify_session.dart';
+import '../../widgets/emotune_logo.dart';
 import '../favorites/favorites_tab_page.dart';
 import '../journal/journal_tab_page.dart';
 import '../notifications/notifications_tab_page.dart';
 import '../profile/profile_tab_page.dart';
-import '../settings/settings_tab_page.dart';
-import '../../widgets/emotune_logo.dart';
 
 class MoodInputPage extends StatefulWidget {
   const MoodInputPage({super.key});
@@ -23,6 +22,14 @@ class _MoodInputPageState extends State<MoodInputPage> {
   final TextEditingController _controller = TextEditingController();
   bool _isSubmittingMood = false;
   String? _latestEmotion;
+  String? _latestFeedback;
+
+  @override
+  void initState() {
+    super.initState();
+    _latestEmotion = AppSession.lastEmotion;
+    _latestFeedback = AppSession.lastAiFeedback;
+  }
 
   @override
   void dispose() {
@@ -63,7 +70,6 @@ class _MoodInputPageState extends State<MoodInputPage> {
             BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: 'Alerts'),
             BottomNavigationBarItem(icon: Icon(Icons.description_outlined), label: 'Journal'),
             BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
-            BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
           ],
         ),
       ),
@@ -82,14 +88,17 @@ class _MoodInputPageState extends State<MoodInputPage> {
         return const JournalTabPage();
       case 4:
         return const ProfileTabPage();
-      case 5:
-        return const SettingsTabPage();
       default:
         return _buildHomeTab();
     }
   }
 
   Widget _buildHomeTab() {
+    final previewTracks = AppSession.lastTracks.take(2).toList(growable: false);
+    final feedbackText = (_latestFeedback ?? AppSession.lastAiFeedback ?? '').trim().isEmpty
+        ? 'Share how you feel so I can suggest a playlist and give supportive feedback.'
+        : (_latestFeedback ?? AppSession.lastAiFeedback ?? '').trim();
+
     return Column(
       children: [
         const EmoTuneLogo(size: 96),
@@ -140,32 +149,52 @@ class _MoodInputPageState extends State<MoodInputPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "I hope you're fine in my community. If in today to be real, "
-                "you just vent to me. I'll ask it carefully, it will disappear. "
-                "Just assure you're okay. You can do this.",
+                'Recommended playlist',
                 style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (previewTracks.isEmpty)
+                const _PlaylistPlaceholder()
+              else
+                Row(
+                  children: [
+                    for (int i = 0; i < previewTracks.length; i++) ...[
+                      Expanded(
+                        child: _PlaylistPreview(
+                          title: (previewTracks[i]['track_name'] ?? 'Untitled Track').toString(),
+                          subtitle: (previewTracks[i]['artist_name'] ?? 'Unknown Artist').toString(),
+                          imageTint: i.isEven ? const Color(0xFF7D552A) : const Color(0xFF425E70),
+                        ),
+                      ),
+                      if (i != previewTracks.length - 1) const SizedBox(width: 8),
+                    ],
+                    if (previewTracks.length == 1) ...[
+                      const SizedBox(width: 8),
+                      const Expanded(child: _PlaylistPlaceholder(compact: true)),
+                      ],
+                  ],
+                ),
+              const SizedBox(height: 12),
+              const Text(
+                'AI feedback',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                feedbackText,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 11.5,
                   height: 1.32,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: const [
-                  Expanded(
-                    child: _PlaylistPreview(
-                      title: 'Christian song\nplaylist',
-                      imageTint: Color(0xFF7D552A),
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: _PlaylistPreview(
-                      title: 'TRUSTING\nGOD',
-                      imageTint: Color(0xFF425E70),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -173,7 +202,7 @@ class _MoodInputPageState extends State<MoodInputPage> {
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border.withOpacity(0.7)),
           ),
           child: Row(
@@ -230,20 +259,31 @@ class _MoodInputPageState extends State<MoodInputPage> {
         text: text,
         emotion: emotion,
         userEmail: AppSession.email,
+        spotifyAccessToken: SpotifySession.accessToken,
       );
 
       final tracks = (recommendations['tracks'] as List<dynamic>? ?? [])
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
+      final aiFeedback = (recommendations['ai_feedback'] ?? '').toString().trim();
 
       AppSession.lastMoodText = text;
       AppSession.lastEmotion = emotion;
       AppSession.lastTracks = tracks;
+      AppSession.lastAiFeedback = aiFeedback;
 
-      setState(() => _latestEmotion = emotion);
+      setState(() {
+        _latestEmotion = emotion;
+        _latestFeedback = aiFeedback.isEmpty ? null : aiFeedback;
+      });
+      _controller.clear();
 
-      if (!mounted) return;
-      Navigator.pushNamed(context, '/recommendations');
+      final warning = (recommendations['warning'] ?? '').toString();
+      if (warning.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(warning)),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -259,17 +299,19 @@ class _MoodInputPageState extends State<MoodInputPage> {
 
 class _PlaylistPreview extends StatelessWidget {
   final String title;
+  final String subtitle;
   final Color imageTint;
 
   const _PlaylistPreview({
     required this.title,
+    required this.subtitle,
     required this.imageTint,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 88,
+      height: 94,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         gradient: LinearGradient(
@@ -279,13 +321,57 @@ class _PlaylistPreview extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.all(8),
-      alignment: Alignment.bottomLeft,
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10.5,
+              color: Colors.white70,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaylistPlaceholder extends StatelessWidget {
+  final bool compact;
+
+  const _PlaylistPlaceholder({this.compact = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: compact ? 94 : 86,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        color: Colors.white.withOpacity(0.04),
+      ),
+      alignment: Alignment.center,
+      child: const Text(
+        'Playlist will appear here',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 11,
+          color: Colors.white70,
         ),
       ),
     );

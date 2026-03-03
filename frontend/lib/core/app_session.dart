@@ -4,6 +4,7 @@ class AppSession {
 
   static String? lastMoodText;
   static String? lastEmotion;
+  static String? lastAiFeedback;
   static List<Map<String, dynamic>> lastTracks = <Map<String, dynamic>>[];
 
   static bool get isLoggedIn => email != null && email!.isNotEmpty;
@@ -13,6 +14,7 @@ class AppSession {
     displayName = null;
     lastMoodText = null;
     lastEmotion = null;
+    lastAiFeedback = null;
     lastTracks = <Map<String, dynamic>>[];
   }
 }

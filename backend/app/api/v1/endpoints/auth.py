@@ -13,6 +13,8 @@ from app.services.spotify_service import (
     create_oauth_state,
     exchange_code_for_tokens,
     fetch_spotify_profile,
+    parse_spotify_http_error,
+    spotify_client_configured,
 )
 
 router = APIRouter()
@@ -65,10 +67,6 @@ def login(payload: LoginRequest) -> dict[str, str]:
     }
 
 
-def _spotify_configured() -> bool:
-    return bool(settings.spotify_client_id and settings.spotify_client_secret)
-
-
 def _frontend_callback_url(params: dict[str, str]) -> str:
     query = urlencode(params)
     # Flutter web default route strategy uses hash route.
@@ -77,11 +75,17 @@ def _frontend_callback_url(params: dict[str, str]) -> str:
 
 @router.get("/spotify/login")
 def spotify_login() -> RedirectResponse:
-    if not _spotify_configured():
+    if not spotify_client_configured():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Spotify credentials are not configured on the backend.",
+            detail=(
+                "Spotify credentials are missing or placeholders. "
+                "Set SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET in backend/.env and "
+                "use a Spotify dashboard redirect URI that exactly matches "
+                "SPOTIFY_REDIRECT_URI (prefer 127.0.0.1 instead of localhost)."
+            ),
         )
+
     state = create_oauth_state()
     authorize_url = build_authorize_url(state)
     return RedirectResponse(
@@ -99,6 +103,12 @@ def spotify_callback(
     if error:
         return RedirectResponse(
             url=_frontend_callback_url({"error": error}),
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        )
+
+    if not spotify_client_configured():
+        return RedirectResponse(
+            url=_frontend_callback_url({"error": "spotify_not_configured"}),
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         )
 
@@ -127,9 +137,9 @@ def spotify_callback(
             )
 
         profile = fetch_spotify_profile(access_token)
-    except httpx.HTTPError:
+    except httpx.HTTPError as exc:
         return RedirectResponse(
-            url=_frontend_callback_url({"error": "spotify_exchange_failed"}),
+            url=_frontend_callback_url({"error": parse_spotify_http_error(exc)}),
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         )
 
@@ -167,5 +177,5 @@ def spotify_me(authorization: str | None = Header(default=None)) -> dict:
     except httpx.HTTPError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Spotify profile fetch failed: {exc}",
+            detail=f"Spotify profile fetch failed: {parse_spotify_http_error(exc)}",
         ) from exc

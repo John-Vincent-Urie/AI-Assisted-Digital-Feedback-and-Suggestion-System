@@ -53,6 +53,7 @@ class ApiService {
     String? emotion,
     String? text,
     String? userEmail,
+    String? spotifyAccessToken,
   }) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/v1/recommendations/generate');
     final response = await http.post(
@@ -62,6 +63,7 @@ class ApiService {
         'emotion': emotion,
         'text': text,
         'user_email': userEmail,
+        'spotify_access_token': spotifyAccessToken,
       }),
     );
     return _decode(response);

@@ -68,12 +68,14 @@ class InMemoryStore:
         emotion: str,
         tracks: list[dict[str, Any]],
         mood_text: str | None = None,
+        ai_feedback: str | None = None,
     ) -> dict[str, Any]:
         session = {
             "id": self._session_id,
             "user_email": (user_email or "anonymous").lower().strip(),
             "emotion": emotion,
             "mood_text": mood_text or "",
+            "ai_feedback": ai_feedback or "",
             "tracks": tracks,
             "created_at": datetime.now(UTC).isoformat(),
         }

@@ -1,11 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_service.dart';
-import '../../core/app_session.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_session.dart';
 
 class RecommendationsPage extends StatelessWidget {
   const RecommendationsPage({super.key});
+
+  Future<void> _openSpotifyLink(BuildContext context, String url) async {
+    if (url.isEmpty) {
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open Spotify link.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,37 +63,75 @@ class RecommendationsPage extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (_, index) {
                     final track = tracks[index];
-                    return Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border.withOpacity(0.45)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.music_note_rounded, color: AppColors.primary),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  (track['track_name'] ?? '').toString(),
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  (track['artist_name'] ?? '').toString(),
-                                  style: const TextStyle(
-                                    color: AppColors.muted,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                    final imageUrl = (track['album_image_url'] ?? '').toString();
+                    final trackName = (track['track_name'] ?? '').toString();
+                    final artistName = (track['artist_name'] ?? '').toString();
+                    final spotifyUrl = (track['spotify_url'] ?? '').toString();
+
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: spotifyUrl.isEmpty
+                          ? null
+                          : () => _openSpotifyLink(context, spotifyUrl),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border.withOpacity(0.45)),
+                        ),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: imageUrl.isEmpty
+                                  ? Container(
+                                      width: 54,
+                                      height: 54,
+                                      color: AppColors.border.withOpacity(0.25),
+                                      child: const Icon(
+                                        Icons.music_note_rounded,
+                                        color: AppColors.primary,
+                                      ),
+                                    )
+                                  : Image.network(
+                                      imageUrl,
+                                      width: 54,
+                                      height: 54,
+                                      fit: BoxFit.cover,
+                                    ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    trackName,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    artistName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (spotifyUrl.isNotEmpty)
+                              const Icon(
+                                Icons.open_in_new_rounded,
+                                color: AppColors.primary,
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   },

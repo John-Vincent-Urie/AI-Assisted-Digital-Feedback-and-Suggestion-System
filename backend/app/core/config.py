@@ -13,12 +13,15 @@ class Settings(BaseSettings):
 
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
-    spotify_redirect_uri: str = "http://localhost:8000/api/v1/auth/spotify/callback"
+    spotify_redirect_uri: str = "http://127.0.0.1:8000/api/v1/auth/spotify/callback"
     spotify_scope: str = (
         "user-read-email user-read-private user-top-read "
         "user-read-playback-state user-modify-playback-state"
     )
-    frontend_base_url: str = "http://localhost:8080"
+    frontend_base_url: str = "http://127.0.0.1:8080"
+
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
 
     jwt_secret: str = "replace_with_secure_value"
 
