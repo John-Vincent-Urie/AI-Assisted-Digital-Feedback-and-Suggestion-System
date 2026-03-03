@@ -1,0 +1,63 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      network: host
+    container_name: emotune-api
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  flutter-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      network: host
+    container_name: emotune-flutter
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  db:
+    image: mysql:8.0
+    container_name: emotune-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: emotune
+      MYSQL_USER: emotune
+      MYSQL_PASSWORD: emotune123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: emotune-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root
+    ports:
+      - "8081:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

@@ -1,0 +1,22 @@
+services:
+  flutter-dev:
+    image: ghcr.io/cirruslabs/flutter:stable
+    container_name: emotune-flutter-dev
+    working_dir: /app
+    command: >
+      sh -lc "flutter config --enable-web &&
+              flutter pub get &&
+              flutter run -d web-server --web-hostname=0.0.0.0 --web-port=8082
+              --dart-define=API_BASE_URL=http://localhost:8000"
+    volumes:
+      - ./frontend:/app
+      - flutter_pub_cache:/root/.pub-cache
+    ports:
+      - "8082:8082"
+    depends_on:
+      - api
+    stdin_open: true
+    tty: true
+
+volumes:
+  flutter_pub_cache:
